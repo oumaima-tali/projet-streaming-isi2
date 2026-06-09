@@ -1,22 +1,16 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\StreamingController;
-use App\Http\Controllers\Api\AuthController;
-
-// Route publique pour se connecter
-Route::post('/login', [AuthController::class, 'login']);
+use App\Http\Controllers\Api\MorceauController;
+use App\Http\Controllers\Api\PlaylistController;
+use App\Http\Controllers\Api\AchatController;
 
 // Routes publiques
-Route::get('/musiques/gratuites', [StreamingController::class, 'gratuites']);
+Route::get('/musiques/gratuites', [MorceauController::class, 'gratuites']);
 
-// Routes protégées par Sanctum (il faut un token valide pour y accéder)
+// Routes protégées par Sanctum
 Route::middleware('auth:sanctum')->group(function () {
-    // Liste des musiques payantes
-    Route::get('/musiques/payantes', [StreamingController::class, 'payantes']);
-    
-    // Actions de l'utilisateur
-    Route::post('/morceaux/{id}/acheter', [StreamingController::class, 'acheter']);
-    Route::get('/compte/factures', [StreamingController::class, 'factures']);
-    Route::post('/playlists/{playlist_id}/ajouter/{morceau_id}', [StreamingController::class, 'ajouterPlaylist']);
+    Route::get('/musiques/payantes', [MorceauController::class, 'payantes']);
+    Route::post('/morceaux/{id}/acheter', [AchatController::class, 'acheter']);
+    Route::get('/factures', [AchatController::class, 'factures']);
+    Route::post('/playlists/{playlist_id}/morceaux/{morceau_id}', [PlaylistController::class, 'ajouterPlaylist']);
 });
