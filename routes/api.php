@@ -3,10 +3,11 @@
 use App\Http\Controllers\Api\MorceauController;
 use App\Http\Controllers\Api\PlaylistController;
 use App\Http\Controllers\Api\AchatController;
+use App\Http\Controllers\Api\AuthController;   
 
 // Routes publiques
 Route::get('/musiques/gratuites', [MorceauController::class, 'gratuites']);
-
+Route::post('/login', [AuthController::class, 'login']);   
 // Routes protégées par Sanctum
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/musiques/payantes', [MorceauController::class, 'payantes']);
