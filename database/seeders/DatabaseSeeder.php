@@ -14,17 +14,17 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Créer un utilisateur de test pour tester l'API plus tard
+        //  Créer un utilisateur de test pour tester l'API plus tard
         $user = User::factory()->create([
             'name' => 'Utilisateur Test',
             'email' => 'test@example.com',
             'password' => bcrypt('password'), // Le mot de passe sera "password"
         ]);
 
-        // 2. Créer 5 styles de musique
+        //  Créer 5 styles de musique
         $styles = Style::factory(5)->create();
 
-        // 3. Créer 5 artistes
+        // Créer 5 artistes
         Artiste::factory(5)->create()->each(function ($artiste) use ($styles) {
             
             // Pour chaque artiste, on crée 2 albums
@@ -41,7 +41,7 @@ class DatabaseSeeder extends Seeder
             });
         });
 
-        // 4. Créer une playlist pour notre utilisateur de test
+        // Créer une playlist pour notre utilisateur de test
         $playlist = Playlist::create([
             'nom' => 'Ma Super Playlist',
             'user_id' => $user->id,

@@ -18,8 +18,7 @@ class AlbumFactory extends Factory
     public function definition(): array
     {
         return [
-            'titre' => fake()->sentence(3), // Un faux titre de 3 mots
-            // On ne met pas l'artiste_id ici, on le gérera dans le seeder
+            'titre' => fake()->sentence(3), 
         ];
     }
 }
