@@ -9,7 +9,29 @@ use Illuminate\Http\Request;
 
 class PlaylistController extends Controller
 {
-    
+    public function index(Request $request)
+    {
+        $playlists = $request->user()
+                             ->playlists()
+                             ->with('morceaux.album.artiste')
+                             ->get();
+
+        return response()->json($playlists);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'nom' => 'required|string|max:255',
+        ]);
+
+        $playlist = $request->user()->playlists()->create([
+            'nom' => $request->nom,
+        ]);
+
+        return response()->json($playlist, 201);
+    }
+
     public function ajouterPlaylist(Request $request, $playlist_id, $morceau_id)
     {
         $user = $request->user();

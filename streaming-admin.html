@@ -12,7 +12,7 @@
   .topbar h1 { font-size: 16px; margin: 0; font-weight: 600; }
   .topbar .spacer { margin-left: auto; }
   .topbar label { font-size: 12px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; }
-  .topbar select, .topbar input { font: inherit; padding: 5px 8px; border: 1px solid #4b5563; border-radius: 6px; background: #111827; color: #fff; }
+  .topbar input { font: inherit; padding: 5px 8px; border: 1px solid #4b5563; border-radius: 6px; background: #111827; color: #fff; }
   .topbar .api { width: 190px; }
   .tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; }
   .tag.on { background: #065f46; }
@@ -34,12 +34,9 @@
   .btn:disabled { opacity: .5; cursor: not-allowed; }
   .field { font: inherit; padding: 6px 9px; border: 1px solid #d1d5db; border-radius: 6px; }
 
-  .banner { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 18px; }
-
   .login { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; max-width: 360px; }
   .login label { display: block; font-size: 13px; color: #6b7280; margin: 0 0 4px; }
   .login .field { width: 100%; margin-bottom: 12px; }
-  .hint { font-size: 12px; color: #6b7280; }
 
   table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #f0f1f3; font-size: 14px; }
@@ -47,10 +44,11 @@
   tr:last-child td { border-bottom: none; }
   .green { color: #059669; font-weight: 600; margin-right: 8px; }
   .price { font-weight: 600; }
-  .toolbar { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .toolbar { margin-bottom: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .toolbar label { font-size: 13px; color: #6b7280; }
-  .toolbar input { width: 70px; }
+  .hint { font-size: 13px; color: #6b7280; }
   .empty { color: #6b7280; padding: 18px 0; }
+  .create { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
 
   .flash { position: fixed; bottom: 18px; right: 18px; padding: 11px 15px; border-radius: 7px; color: #fff; font-size: 14px; box-shadow: 0 4px 14px #0003; }
   .flash.ok { background: #059669; }
@@ -63,15 +61,8 @@
 
   <div class="topbar">
     <h1>Streaming · Admin</h1>
-    <label>Mode
-      <select v-model="mode" @change="changeMode">
-        <option value="demo">Démo (sans serveur)</option>
-        <option value="api">API réelle</option>
-      </select>
-    </label>
-    <label v-if="mode==='api'">API
-      <input class="api" v-model="apiBase" spellcheck="false" />
-    </label>
+    <label>API <input class="api" v-model="apiBase" spellcheck="false" @keyup.enter="reloadAll" /></label>
+    <button class="btn" @click="reloadAll">Recharger</button>
     <span class="spacer"></span>
     <span v-if="token" class="tag on">Connecté</span>
     <span v-else class="tag off">Visiteur</span>
@@ -82,18 +73,14 @@
     <nav class="side">
       <button :class="{active: tab==='gratuites'}" @click="tab='gratuites'">Gratuites</button>
       <button :class="{active: tab==='payantes'}" @click="tab='payantes'">Payantes</button>
+      <button :class="{active: tab==='playlists'}" @click="tab='playlists'">Playlists</button>
       <button :class="{active: tab==='factures'}" @click="tab='factures'">Factures</button>
     </nav>
 
     <main>
-      <div v-if="mode==='demo'" class="banner">
-        <b>Mode Démo</b> — données intégrées, aucun serveur requis. Connexion : <b>test@example.com / password</b>.
-        Passe sur « API réelle » quand ton Laravel tourne.
-      </div>
-
       <!-- Login -->
       <div v-if="!token && tab!=='gratuites'" class="login">
-        <h2>Connexion requise</h2>
+        <h2>Connexion</h2>
         <label>Email</label>
         <input class="field" type="email" v-model="form.email" />
         <label>Mot de passe</label>
@@ -101,14 +88,17 @@
         <button class="btn primary" :disabled="loading" @click="login">
           {{ loading ? 'Connexion…' : 'Se connecter' }}
         </button>
-        <p class="hint">Seeder : test@example.com / password</p>
       </div>
 
       <!-- Gratuites -->
       <div v-show="tab==='gratuites'">
         <h2>Morceaux gratuits</h2>
-        <div class="toolbar">
-          <label>ID playlist</label><input class="field" type="number" min="1" v-model.number="playlistId" />
+        <div class="toolbar" v-if="token">
+          <label>Ajouter à la playlist</label>
+          <select class="field" v-model="selectedPlaylistId">
+            <option v-for="p in userPlaylists" :key="p.id" :value="p.id">{{ p.nom }}</option>
+          </select>
+          <span v-if="!userPlaylists.length" class="hint">Crée une playlist dans l'onglet Playlists.</span>
         </div>
         <table v-if="gratuites.length">
           <thead><tr><th>Titre</th><th>Artiste</th><th>Album</th><th>Durée</th><th>Styles</th><th></th></tr></thead>
@@ -116,7 +106,7 @@
             <tr v-for="m in gratuites" :key="m.id">
               <td>{{ m.titre }}</td><td>{{ art(m) }}</td><td>{{ alb(m) }}</td>
               <td>{{ duree(m.duree) }}</td><td>{{ styles(m) }}</td>
-              <td><button class="btn" :disabled="!token" @click="ajouter(m)">+ Playlist</button></td>
+              <td><button class="btn" :disabled="!token || !selectedPlaylistId" @click="ajouter(m)">+ Playlist</button></td>
             </tr>
           </tbody>
         </table>
@@ -127,7 +117,11 @@
       <div v-show="tab==='payantes'" v-if="token">
         <h2>Morceaux payants</h2>
         <div class="toolbar">
-          <label>ID playlist</label><input class="field" type="number" min="1" v-model.number="playlistId" />
+          <label>Ajouter à la playlist</label>
+          <select class="field" v-model="selectedPlaylistId">
+            <option v-for="p in userPlaylists" :key="p.id" :value="p.id">{{ p.nom }}</option>
+          </select>
+          <span v-if="!userPlaylists.length" class="hint">Crée une playlist dans l'onglet Playlists.</span>
         </div>
         <table v-if="payantes.length">
           <thead><tr><th>Titre</th><th>Artiste</th><th>Album</th><th>Durée</th><th>Prix</th><th></th></tr></thead>
@@ -137,7 +131,7 @@
               <td>{{ duree(m.duree) }}</td><td class="price">{{ prix(m.prix) }}</td>
               <td>
                 <span v-if="owned.includes(m.id)" class="green">Acheté</span>
-                <button v-if="owned.includes(m.id)" class="btn" @click="ajouter(m)">+ Playlist</button>
+                <button v-if="owned.includes(m.id)" class="btn" :disabled="!selectedPlaylistId" @click="ajouter(m)">+ Playlist</button>
                 <button v-else class="btn primary" :disabled="busy===m.id" @click="acheter(m)">
                   {{ busy===m.id ? '…' : 'Acheter' }}
                 </button>
@@ -146,6 +140,34 @@
           </tbody>
         </table>
         <p v-else class="empty">Aucun morceau.</p>
+      </div>
+
+      <!-- Playlists -->
+      <div v-show="tab==='playlists'" v-if="token">
+        <h2>Mes playlists</h2>
+
+        <div class="create">
+          <input class="field" v-model="newPlaylistName" placeholder="Nom de la playlist" @keyup.enter="creerPlaylist" />
+          <button class="btn primary" @click="creerPlaylist">Créer la playlist</button>
+        </div>
+
+        <div class="toolbar" v-if="userPlaylists.length">
+          <label>Playlist</label>
+          <select class="field" v-model="selectedPlaylistId">
+            <option v-for="p in userPlaylists" :key="p.id" :value="p.id">{{ p.nom }}</option>
+          </select>
+        </div>
+
+        <table v-if="currentPlaylist.length">
+          <thead><tr><th>Titre</th><th>Artiste</th><th>Album</th><th>Durée</th></tr></thead>
+          <tbody>
+            <tr v-for="m in currentPlaylist" :key="m.id">
+              <td>{{ m.titre }}</td><td>{{ art(m) }}</td><td>{{ alb(m) }}</td><td>{{ duree(m.duree) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else-if="userPlaylists.length" class="empty">Cette playlist est vide. Ajoute des morceaux depuis Gratuites ou Payantes.</p>
+        <p v-else class="empty">Aucune playlist. Crée-en une ci-dessus.</p>
       </div>
 
       <!-- Factures -->
@@ -159,7 +181,7 @@
             </tr>
           </tbody>
         </table>
-        <p v-else class="empty">Aucun achat. Va dans Payantes pour acheter un morceau.</p>
+        <p v-else class="empty">Aucun achat.</p>
       </div>
     </main>
   </div>
@@ -170,40 +192,26 @@
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script>
 const { createApp } = Vue;
-
-// ---------- Données du mode Démo (forme identique au JSON de l'API Laravel) ----------
-function makeMorceau(id, titre, duree, prix, gratuit, artiste, album, styles) {
-  return { id, titre, duree, prix, est_gratuit: gratuit,
-           album: { titre: album, artiste: { nom: artiste } },
-           styles: styles.map((libelle, i) => ({ id: id*10+i, libelle })) };
-}
-const DEMO_MORCEAUX = [
-  makeMorceau(1, "Lumière du matin", 212, 0.00, true,  "Lina Moreau",   "Premiers pas",     ["Pop"]),
-  makeMorceau(2, "Nuit blanche",     188, 0.00, true,  "Les Cigales",   "Été indien",       ["Rock", "Pop"]),
-  makeMorceau(3, "Échos",            240, 0.00, true,  "Kojo",          "Racines",          ["Hip-Hop"]),
-  makeMorceau(4, "Marée haute",      201, 1.29, false, "Lina Moreau",   "Premiers pas",     ["Pop", "Électro"]),
-  makeMorceau(5, "Ville endormie",   276, 1.99, false, "Les Cigales",   "Été indien",       ["Rock"]),
-  makeMorceau(6, "Sablier",          198, 0.99, false, "Kojo",          "Racines",          ["Hip-Hop", "Jazz"]),
-  makeMorceau(7, "Aurore",           305, 2.49, false, "Eva Solal",     "Constellations",   ["Électro"]),
-  makeMorceau(8, "Brume",            233, 1.49, false, "Eva Solal",     "Constellations",   ["Jazz"]),
-  makeMorceau(9, "Le dernier train", 259, 2.99, false, "Théo Vasseur",  "Quai n°7",         ["Rock", "Jazz"]),
-  makeMorceau(10,"Vertige",          221, 1.79, false, "Théo Vasseur",  "Quai n°7",         ["Électro", "Pop"]),
-];
-
 createApp({
   data() {
     return {
-      mode: "demo",                       // "demo" ou "api"
       apiBase: "http://localhost/api",
       token: null,
       tab: "gratuites",
       form: { email: "test@example.com", password: "password" },
-      playlistId: 1,
       gratuites: [], payantes: [], factures: [], owned: [],
+      userPlaylists: [],          // playlists réelles (GET /playlists)
+      selectedPlaylistId: null,   // playlist choisie
+      newPlaylistName: "",
       loading: false, busy: null,
       msg: "", msgType: "info",
-      demoAchats: [],                     // factures simulées en mémoire
     };
+  },
+  computed: {
+    currentPlaylist() {
+      const p = this.userPlaylists.find(x => x.id === this.selectedPlaylistId);
+      return p ? (p.morceaux || []) : [];
+    },
   },
   methods: {
     art(m)  { return m.album && m.album.artiste ? m.album.artiste.nom : "—"; },
@@ -213,62 +221,9 @@ createApp({
     duree(s){ return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); },
     dateFr(d){ if(!d) return "—"; const dt = new Date(d); return isNaN(dt) ? d : dt.toLocaleString("fr-FR"); },
     flash(m, t="info"){ this.msg = m; this.msgType = t; setTimeout(() => { this.msg = ""; }, 3500); },
+    reloadAll() { this.loadGratuites(); if (this.token) { this.loadPayantes(); this.loadFactures(); this.loadPlaylists(); } },
 
-    changeMode() { this.logout(); this.loadGratuites(); },
-
-    // ---------- Aiguillage : démo OU vraie API ----------
     async request(method, path, body) {
-      if (this.mode === "demo") return this.mockRequest(method, path, body);
-      return this.realRequest(method, path, body);
-    },
-
-    // ---------- API simulée (mode démo) ----------
-    mockRequest(method, path, body) {
-      return new Promise((resolve, reject) => setTimeout(() => {
-        const fail = (status, message) => reject({ status, message });
-
-        if (method === "POST" && path === "/login") {
-          if (body.email === "test@example.com" && body.password === "password")
-            return resolve({ access_token: "demo-token", token_type: "Bearer" });
-          return fail(401, "Identifiants incorrects");
-        }
-        if (method === "GET" && path === "/musiques/gratuites")
-          return resolve(DEMO_MORCEAUX.filter(m => m.est_gratuit));
-
-        // routes protégées : token requis
-        if (!this.token) return fail(401, "Non authentifié.");
-
-        if (method === "GET" && path === "/musiques/payantes")
-          return resolve(DEMO_MORCEAUX.filter(m => !m.est_gratuit));
-
-        if (method === "GET" && path === "/factures")
-          return resolve(this.demoAchats);
-
-        let mm = path.match(/^\/morceaux\/(\d+)\/acheter$/);
-        if (method === "POST" && mm) {
-          const id = +mm[1];
-          const m = DEMO_MORCEAUX.find(x => x.id === id);
-          if (!m) return fail(404, "Morceau introuvable.");
-          if (this.demoAchats.some(a => a.morceau_id === id)) return fail(400, "Vous possédez déjà ce morceau.");
-          this.demoAchats.push({ morceau_id: id, titre: m.titre, prix_paye: m.prix, date_achat: new Date().toISOString() });
-          return resolve({ message: "Achat effectué avec succès !" });
-        }
-
-        let pm = path.match(/^\/playlists\/(\d+)\/morceaux\/(\d+)$/);
-        if (method === "POST" && pm) {
-          const mid = +pm[2];
-          const m = DEMO_MORCEAUX.find(x => x.id === mid);
-          if (!m) return fail(404, "Morceau introuvable.");
-          const achete = this.demoAchats.some(a => a.morceau_id === mid);
-          if (!m.est_gratuit && !achete) return fail(403, "Achetez ce morceau pour l'ajouter à une playlist.");
-          return resolve({ message: "Morceau ajouté à la playlist." });
-        }
-        return fail(404, "Route inconnue (démo).");
-      }, 180));
-    },
-
-    // ---------- Vraie API (mode api) ----------
-    async realRequest(method, path, body) {
       const headers = { "Accept": "application/json" };
       if (body) headers["Content-Type"] = "application/json";
       if (this.token) headers["Authorization"] = "Bearer " + this.token;
@@ -283,23 +238,45 @@ createApp({
       return data;
     },
 
-    // ---------- Actions (identiques quel que soit le mode) ----------
     async login() {
       this.loading = true;
       try {
         const d = await this.request("POST", "/login", { email: this.form.email, password: this.form.password });
         this.token = d.access_token;
         this.flash("Connecté", "ok");
-        await Promise.all([this.loadPayantes(), this.loadFactures()]);
-      } catch (e) {
-        this.flash(e.message + (this.mode==='api' && e.status === 404 ? " (route POST /login dans api.php ?)" : ""), "err");
-      } finally { this.loading = false; }
+        await Promise.all([this.loadPayantes(), this.loadFactures(), this.loadPlaylists()]);
+      } catch (e) { this.flash(e.message, "err"); }
+      finally { this.loading = false; }
     },
-    logout() { this.token = null; this.payantes = []; this.factures = []; this.owned = []; this.tab = "gratuites"; },
+    logout() {
+      this.token = null;
+      this.payantes = []; this.factures = []; this.owned = [];
+      this.userPlaylists = []; this.selectedPlaylistId = null; this.newPlaylistName = "";
+      this.tab = "gratuites";
+    },
 
     async loadGratuites() { try { this.gratuites = await this.request("GET", "/musiques/gratuites"); } catch (e) { this.flash(e.message, "err"); } },
     async loadPayantes() { if (!this.token) return; try { this.payantes = await this.request("GET", "/musiques/payantes"); } catch (e) { this.flash(e.message, "err"); } },
     async loadFactures() { if (!this.token) return; try { this.factures = await this.request("GET", "/factures"); this.owned = this.factures.map(f => f.morceau_id); } catch (e) { this.flash(e.message, "err"); } },
+    async loadPlaylists() {
+      if (!this.token) return;
+      try {
+        this.userPlaylists = await this.request("GET", "/playlists");
+        if (!this.selectedPlaylistId && this.userPlaylists.length) this.selectedPlaylistId = this.userPlaylists[0].id;
+      } catch (e) { this.flash(e.message, "err"); }
+    },
+
+    async creerPlaylist() {
+      const nom = this.newPlaylistName.trim();
+      if (!nom) { this.flash("Donne un nom à la playlist.", "err"); return; }
+      try {
+        const p = await this.request("POST", "/playlists", { nom });
+        this.newPlaylistName = "";
+        await this.loadPlaylists();
+        this.selectedPlaylistId = p.id;
+        this.flash("Playlist créée", "ok");
+      } catch (e) { this.flash(e.message, "err"); }
+    },
 
     async acheter(m) {
       this.busy = m.id;
@@ -308,9 +285,12 @@ createApp({
       finally { this.busy = null; }
     },
     async ajouter(m) {
-      if (!this.playlistId) { this.flash("Renseigne un ID de playlist.", "err"); return; }
-      try { const d = await this.request("POST", "/playlists/" + this.playlistId + "/morceaux/" + m.id); this.flash(d.message || "Ajouté", "ok"); }
-      catch (e) { this.flash(e.message, "err"); }
+      if (!this.selectedPlaylistId) { this.flash("Choisis ou crée une playlist.", "err"); return; }
+      try {
+        const d = await this.request("POST", "/playlists/" + this.selectedPlaylistId + "/morceaux/" + m.id);
+        await this.loadPlaylists();   // rafraîchit le contenu réel
+        this.flash(d.message || "Ajouté à la playlist", "ok");
+      } catch (e) { this.flash(e.message, "err"); }
     },
   },
   mounted() { this.loadGratuites(); },
